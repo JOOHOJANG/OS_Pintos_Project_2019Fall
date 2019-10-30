@@ -20,6 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+void makestack(char* filename, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -37,7 +38,6 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
@@ -53,15 +53,19 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  char* token;
+  char* ptr;
+  char tmp[256];
+  strlcpy(tmp, file_name, strlen(file_name)+1);
+ // token = strtok_r(file_name, ' ', &ptr);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
   /* If load failed, quit. */
+  if(success) makestack(tmp, &if_.esp);
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
@@ -86,8 +90,15 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
+  int i=0;
+ 
+  while(1){
+  if(i<0) break;
+	i++;
+	
+  }
   return -1;
 }
 
@@ -214,21 +225,24 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofset;
   bool success = false;
   int i;
+  char* token;
+  char* ptr;
+  char tmp[256];
+  strlcpy(tmp, file_name, strlen(file_name)+1);
 
   /* Allocate and activate page directory. */
-  t->pagedir = pagedir_create ();
+  t->pagedir = pagedir_create();
   if (t->pagedir == NULL) 
     goto done;
-  process_activate ();
-
+  process_activate();
+  token = strtok_r(file_name, " " , &ptr);
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (token);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", token);
       goto done; 
     }
-
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -241,7 +255,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
-
   /* Read program headers. */
   file_ofset = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -300,14 +313,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-
   /* Set up stack. */
   if (!setup_stack (esp))
-    goto done;
-
+    goto done;  
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-
+  
   success = true;
 
  done:
@@ -463,3 +474,56 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (th->pagedir, upage) == NULL
           && pagedir_set_page (th->pagedir, upage, kpage, writable));
 }
+void makestack(char* filename, void **esp){
+	char** arg;
+	int inputlen = 0;
+	inputlen = strlen(filename)+1;
+	int len = 0;
+	int result = 0;
+	int i = 0;
+	char tmp[256];
+	char* ptr;
+	char* token;
+
+	strlcpy(tmp, filename, inputlen);//input argument 저장이여
+       
+	token = strtok_r(filename, " ",&ptr);//토큰 갯수 확인용
+	while(token != NULL){ //토근 갯수 확인용
+		result++;
+		token = strtok_r(NULL, " ", &ptr); 
+	}
+	arg = (char**)malloc(sizeof(char*)*result); 
+	token = strtok_r(tmp, " ", &ptr); //토큰화ㅏ 시작
+	for(i = 0 ; i<result; i++){
+		arg[i] = token;
+		token = strtok_r(NULL, " ", &ptr);
+	}
+	for(i = result-1; i>=0 ; i--){
+		inputlen = strlen(arg[i])+1;//null문자 포함시켜서 +1한겨
+		*esp -= inputlen;
+		len+=inputlen;
+		strlcpy(*esp, arg[i], inputlen);
+		arg[i] = *esp;
+	}
+	
+	int wordalign = len%4 == 0 ? 0 : 4-(len%4);
+	for(i = 0 ; i<wordalign ; i++){
+		*esp-=1;
+		**(uint8_t**)esp=0;
+	}
+	*esp -=4;//null pointer sentinel 추가지점
+	**(uint32_t**)esp = 0;
+	for(i = result-1 ; i>= 0 ; i--){//agrv adress저장
+		*esp -=4;
+		**(uint32_t**)esp = arg[i];
+	}
+	*esp -=4;//argv 저장
+	**(uint32_t**)esp = *esp+4;
+	*esp-=4;//argc 저장
+	**(uint32_t**)esp = result;
+	*esp-=4;//return address 저장
+	**(uint32_t**)esp = 0;
+ 	hex_dump(*esp, *esp, PHYS_BASE - *esp, true);
+	free(arg);	
+}
+
