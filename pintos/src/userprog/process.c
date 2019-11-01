@@ -65,7 +65,6 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
   /* If load failed, quit. */
-  if(success) makestack(tmp, &if_.esp);
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
@@ -316,9 +315,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;  
+
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-  
+  makestack(tmp, esp); 
   success = true;
 
  done:
