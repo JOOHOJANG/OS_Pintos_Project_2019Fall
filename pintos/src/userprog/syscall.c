@@ -3,7 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-
+#include "threads/vaddr.h"
 static void syscall_handler (struct intr_frame *);
 
 void
@@ -21,9 +21,11 @@ syscall_handler (struct intr_frame *f)
 	halt();
 	break;
    case SYS_EXIT:
+	check_vaddr(f->esp+4);
 	exit((f->eax));
 	break;
    case SYS_EXEC:
+	check_vaddr(f->esp+4);
 	f->eax = exec((char*)(f->esp+4));
 	break;
    case SYS_WAIT:
@@ -94,4 +96,8 @@ int sum_of_four_int (int a, int b, int c, int d){
   return a + b + c + d;
 }
 
-
+void check_vaddr(const void *vaddr){
+	if(!is_user_vaddr){
+		exit(-1);
+	}
+}
