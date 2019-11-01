@@ -94,14 +94,13 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  int i=0;
- 
-  while(1){
-  if(i<0) break;
-	i++;
-	
-  }
-  return -1;
+  struct thread * child = tid_thread(child_tid);
+
+  if(!child) return -1;
+
+  sema_down(child->child_sync);
+  
+  return child->ret_status;
 }
 
 /* Free the current process's resources. */
@@ -127,6 +126,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  sema_up(cur->child_sync);
 }
 
 /* Sets up the CPU for running user code in the current

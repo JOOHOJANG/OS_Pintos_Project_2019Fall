@@ -470,6 +470,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+
+  sema_init(t->child_sync, 0);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -585,3 +587,19 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+struct thread * tid_thread(tid_t num) 
+{
+  struct list_elem * list_it;
+  struct thread * child;
+
+  for (list_it = list_begin(&all_list); list_it != list_end(&all_list); list_it = list_next(list_it)) {
+    child = list_entry(list_it, struct thread, allelem);
+
+    if (child->tid == num) {
+      return child;
+    }
+  }
+
+  return NULL;
+}
