@@ -13,43 +13,50 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f) 
 {
 
-
-  printf ("system call!\n");
-  thread_exit ();
-}
-
-
-
-void halt (void)
-{
-  shutdown_power_off();
-}
-
-void exit (int status)
-{
-  struct thread *cur;
-
-  cur = thread_current();
-
-  printf("%s: exit(%d)\n", cur->name, status);
-}
-/*
-pid_t exec (const char *cmd_line)
-{
-  
-}
-
-int wait (pid_t pid)
-{
+  switch (*(uint32_t*)(f->esp)){
+   case SYS_HALT:
+	halt();
+	break;
+   case SYS_EXIT:
+	exit((f->eax));
+	break;
+   case SYS_EXEC:
+	f->eax = exec((char*)(f->esp+4));
+	break;
+   case SYS_WAIT:
+ 	break;
+   case SYS_READ:
+	break;
+   case SYS_WRITE:
+	f->eax = write((int)*(uint32_t*)(f->esp+4),(void*) *(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
+	break;
+  }
 
 }
-*/
+void halt (void){
+	shutdown_power_off();
+}
+
+void exit(int status){
+	struct thread* cur;	
+	cur = thread_current();
+	printf("%s: exit(%d)\n", cur->name, status);
+	thread_exit();
+}
+
+int write(int fd, const void *buffer, unsigned size){
+	if(fd==1){
+		putbuf(buffer, size);
+		return size;
+	}
+	return -1;
+}
+
 int read (int fd, void *buffer, unsigned size)
 {
-  void *temp = buffer;
   int i;
 
   if (fd == 0) {
@@ -60,27 +67,21 @@ int read (int fd, void *buffer, unsigned size)
       }
     }
 
-    buffer = temp;
     return i;
   }
 
   return -1;
 }
-/*
-int write (int fd, const void *buffer, unsigned size)
+pid_t exec (const char *cmd_line)
 {
-  if (fd == 1) {
-
-  }
-
-  
+ return process_execute(cmd_line);
 }
-*/
+
 int fibonacci (int n)
 {
   int a = 0, res = 1;
-
-  for (int i = 0; i < n; i++) {
+  int i =0;
+  for (i = 0; i < n; i++) {
     int t = res;
     res += a;
     a = res;
@@ -92,3 +93,5 @@ int fibonacci (int n)
 int sum_of_four_int (int a, int b, int c, int d){
   return a + b + c + d;
 }
+
+

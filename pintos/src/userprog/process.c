@@ -31,15 +31,18 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
+  char* token;
+  char* ptr;
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  token = strtok_r(file_name, " ", &ptr);
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  
+  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -523,7 +526,6 @@ void makestack(char* filename, void **esp){
 	**(uint32_t**)esp = result;
 	*esp-=4;//return address 저장
 	**(uint32_t**)esp = 0;
- 	hex_dump(*esp, *esp, PHYS_BASE - *esp, true);
 	free(arg);	
 }
 
