@@ -15,6 +15,8 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+
+
   printf ("system call!\n");
   thread_exit ();
 }
@@ -48,12 +50,12 @@ int wait (pid_t pid)
 int read (int fd, void *buffer, unsigned size)
 {
   void *temp = buffer;
+  int i;
 
   if (fd == 0) {
-    for (int i = 0; i < (int)size; i++) {
+    for (i = 0; i < (int)size; i++) {
       *(uint8_t *)buffer = input_getc();
       if (*(uint8_t *)buffer++ == '\0') {
-        i--;
         break;
       }
     }
