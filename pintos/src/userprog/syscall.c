@@ -36,6 +36,11 @@ syscall_handler (struct intr_frame *f)
    case SYS_WRITE:
 	f->eax = write((int)*(uint32_t*)(f->esp+4),(void*) *(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
 	break;
+   case SYS_FIBONACCI:
+	f->eax = fibonacci((int)*(uint32_t*)(f->esp+4));
+	break;
+   case SYS_SUM:
+	f->eax = sum_of_four_int((int)*(uint32_t*)(f->esp+4), (int)*(uint32_t*)(f->esp+8), (int)*(uint32_t*)(f->esp+12), (int)*(uint32_t*)(f->esp+16));
   }
 
 }
@@ -86,12 +91,12 @@ pid_t exec (const char *cmd_line)
 
 int fibonacci (int n)
 {
-  int a = 0, res = 1;
-  int i =0;
-  for (i = 0; i < n; i++) {
+  int a = 0, res = 1, i;
+
+  for (i = 1; i < n; i++) {
     int t = res;
     res += a;
-    a = res;
+    a = t;
   }
 
   return res;

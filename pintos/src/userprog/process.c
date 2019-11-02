@@ -99,7 +99,7 @@ process_wait (tid_t child_tid)
 	
 	if(child == NULL) return -1;
 
-	sema_down(child->child_sync);
+	sema_down(&(child->child_sync));
 	return child->ret_status;
 }
 
@@ -126,7 +126,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-    sema_up(cur->child_sync);
+    sema_up(&(cur->child_sync));
 }
 
 /* Sets up the CPU for running user code in the current

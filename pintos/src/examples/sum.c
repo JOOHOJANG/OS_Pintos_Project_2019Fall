@@ -1,16 +1,17 @@
 #include <stdio.h>
-#include <syscall.h>
 #include <stdlib.h>
+#include <syscall.h>
+//#include <lib/kernel/syscall.h>
+//#include <userprog/syscall.h>
 
 int
-main (int argc, char **argv) 
-{
+main (int argc, char *argv[]) {
+  int a, b, c, d, fibo_res, sum_res;
+
   if (argc != 5) {
-    printf("argument 5");
+    printf("argument 5!!\n");
     return EXIT_FAILURE;
   }
-
-  int a, b, c, d, fibo_res, sum_res;
 
   a = atoi(argv[1]);
   b = atoi(argv[2]);
@@ -24,3 +25,4 @@ main (int argc, char **argv)
 
   return EXIT_SUCCESS;
 }
+
