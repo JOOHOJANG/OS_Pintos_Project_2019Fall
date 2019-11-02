@@ -40,6 +40,7 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   token = strtok_r(file_name, " ", &ptr);
+  if(token == NULL) return -1;
   /* Create a new thread to execute FILE_NAME. */
   
   tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);
@@ -49,7 +50,7 @@ process_execute (const char *file_name)
 }
 
 /* A thread function that loads a user process and starts it
-   running. */
+   running.*/
 static void
 start_process (void *file_name_)
 {
@@ -59,8 +60,8 @@ start_process (void *file_name_)
   char* token;
   char* ptr;
   char tmp[256];
-  strlcpy(tmp, file_name, strlen(file_name)+1);
- // token = strtok_r(file_name, ' ', &ptr);
+  //strlcpy(tmp, file_name, strlen(file_name)+1);
+  // token = strtok_r(file_name, ' ', &ptr);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -71,7 +72,6 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
-
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -94,15 +94,15 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-	struct thread * child;
+	struct thread * child = NULL;
 	int ret_stat;
 
 	child = tid_thread(child_tid);
-	ret_stat = child->ret_status;
 	
 	if(child == NULL) return -1;
-
+	
 	sema_down(&(child->child_sync));
+	ret_stat = child->ret_status;
 	return ret_stat;
 }
 
@@ -234,7 +234,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char* ptr;
   char tmp[256];
   strlcpy(tmp, file_name, strlen(file_name)+1);
-
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create();
   if (t->pagedir == NULL) 

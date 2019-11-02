@@ -21,15 +21,16 @@ syscall_handler (struct intr_frame *f)
 	halt();
 	break;
    case SYS_EXIT:
-	check_vaddr(f->esp+4);
-	exit((f->eax));
+        check_vaddr(f->esp + 4);
+        exit(*(uint32_t *)(f->esp + 4));
 	break;
    case SYS_EXEC:
 	check_vaddr(f->esp+4);
-	f->eax = exec((char*)(f->esp+4));
+	f->eax = exec(*(char**)(f->esp+4));
 	break;
    case SYS_WAIT:
-	f->eax = wait(*(int *)(f->esp+4));
+	check_vaddr(f->esp+4);
+	f->eax = wait(*(int*)(f->esp+4));
  	break;
    case SYS_READ:
 	f->eax = read((int)*(uint32_t*)(f->esp+4), (void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
@@ -52,6 +53,7 @@ void halt (void){
 void exit(int status){
 	struct thread* cur;	
 	cur = thread_current();
+	cur->ret_status = status;
 	printf("%s: exit(%d)\n", cur->name, status);
 	thread_exit();
 }
