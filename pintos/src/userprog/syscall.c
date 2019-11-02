@@ -5,7 +5,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 static void syscall_handler (struct intr_frame *);
-
+void check_vaddr(const void* vaddr);
 void
 syscall_init (void) 
 {
@@ -29,10 +29,9 @@ syscall_handler (struct intr_frame *f)
 	f->eax = exec((char*)(f->esp+4));
 	break;
    case SYS_WAIT:
-	f->eax = wait(*(int *)(f->esp+4));
+	f->eax = read((int)*(uint32_t*)(f->esp+4), (void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
  	break;
    case SYS_READ:
-	f->eax = read(*(int *)(f->esp+4), *(void **)(f->esp+8), *(unsigned *)(f->esp+12));
 	break;
    case SYS_WRITE:
 	f->eax = write((int)*(uint32_t*)(f->esp+4),(void*) *(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
@@ -59,16 +58,14 @@ int write(int fd, const void *buffer, unsigned size){
 	return -1;
 }
 
-int wait (pid_t pid)
-{
-  return process_wait(pid);
+int wait (pid_t pid){
+	return process_wait(pid);
 }
 
 int read (int fd, void *buffer, unsigned size)
 {
   int i;
   void *temp = buffer;
-
   if (fd == 0) {
     for (i = 0; i < (int)size; i++) {
       *(uint8_t *)temp = input_getc();
@@ -82,16 +79,15 @@ int read (int fd, void *buffer, unsigned size)
 
   return -1;
 }
-
 pid_t exec (const char *cmd_line)
 {
-  return process_execute(cmd_line);
+ return process_execute(cmd_line);
 }
 
 int fibonacci (int n)
 {
   int a = 0, res = 1;
-  int i = 0;
+  int i =0;
   for (i = 0; i < n; i++) {
     int t = res;
     res += a;
@@ -106,7 +102,7 @@ int sum_of_four_int (int a, int b, int c, int d){
 }
 
 void check_vaddr(const void *vaddr){
-  if(!is_user_vaddr(vaddr)){
-    exit(-1);
-  }
-}
+	if(!is_user_vaddr(vaddr)){
+		exit(-1);
+	}
+} 

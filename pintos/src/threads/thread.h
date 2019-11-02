@@ -1,10 +1,10 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
-
+#include "threads/synch.h"
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/synch.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -95,14 +95,13 @@ struct thread
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
+    uint32_t *pagedir;
+    struct semaphore * child_sync;
+    int ret_status;                  /* Page directory. */
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-
-    struct semaphore * child_sync;
-    int ret_status;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -140,7 +139,5 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
-struct thread * tid_thread(tid_t);
-
+struct thread * tid_thread(tid_t tid);
 #endif /* threads/thread.h */

@@ -1,10 +1,7 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 #include "lib/user/syscall.h"
-
 void syscall_init (void);
-
-void check_vaddr(const void *);
 
 void halt (void);
 void exit (int);
