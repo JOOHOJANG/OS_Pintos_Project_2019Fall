@@ -38,14 +38,17 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
+
   strlcpy (fn_copy, file_name, PGSIZE);
   token = strtok_r(file_name, " ", &ptr);
-  if(token == NULL) return -1;
+  if(filesys_open(token)==NULL) return -1;
   /* Create a new thread to execute FILE_NAME. */
   
   tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
+
+  tid_thread(tid)->par_tid = thread_current()->tid;
   return tid;
 }
 
@@ -57,9 +60,9 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  char* token;
-  char* ptr;
-  char tmp[256];
+  //char* token;
+  //char* ptr;
+  //char tmp[256];
   //strlcpy(tmp, file_name, strlen(file_name)+1);
   // token = strtok_r(file_name, ' ', &ptr);
   /* Initialize interrupt frame and load executable. */
@@ -102,7 +105,7 @@ process_wait (tid_t child_tid)
 	if(child == NULL) return -1;
 	
 	sema_down(&(child->child_sync));
-	ret_stat = child->ret_status;
+	ret_stat = thread_current()->child_status;
 	return ret_stat;
 }
 

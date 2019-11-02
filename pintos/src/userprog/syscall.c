@@ -5,7 +5,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 static void syscall_handler (struct intr_frame *);
-void check_vaddr(const void* vaddr);
 void
 syscall_init (void) 
 {
@@ -21,15 +20,15 @@ syscall_handler (struct intr_frame *f)
 	halt();
 	break;
    case SYS_EXIT:
-        check_vaddr(f->esp + 4);
+	if(!is_user_vaddr(f->esp+4)) exit(-1);
         exit(*(uint32_t *)(f->esp + 4));
 	break;
    case SYS_EXEC:
-	check_vaddr(f->esp+4);
+	if(!is_user_vaddr(f->esp+4)) exit(-1);
 	f->eax = exec(*(char**)(f->esp+4));
 	break;
    case SYS_WAIT:
-	check_vaddr(f->esp+4);
+	if(!is_user_vaddr(f->esp+4)) exit(-1);
 	f->eax = wait(*(int*)(f->esp+4));
  	break;
    case SYS_READ:
@@ -51,9 +50,13 @@ void halt (void){
 }
 
 void exit(int status){
-	struct thread* cur;	
+	struct thread* cur, * par;
+	int par_tid;
+	
 	cur = thread_current();
-	cur->ret_status = status;
+	par_tid = cur->par_tid;
+	par = tid_thread(par_tid);
+	par->child_status = status;
 	printf("%s: exit(%d)\n", cur->name, status);
 	thread_exit();
 }
@@ -109,8 +112,3 @@ int sum_of_four_int (int a, int b, int c, int d){
   return a + b + c + d;
 }
 
-void check_vaddr(const void *vaddr){
-	if(!is_user_vaddr(vaddr)){
-		exit(-1);
-	}
-} 
