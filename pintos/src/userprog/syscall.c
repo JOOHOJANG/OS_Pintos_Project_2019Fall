@@ -29,9 +29,10 @@ syscall_handler (struct intr_frame *f)
 	f->eax = exec((char*)(f->esp+4));
 	break;
    case SYS_WAIT:
-	f->eax = read((int)*(uint32_t*)(f->esp+4), (void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
+	f->eax = wait(*(int *)(f->esp+4));
  	break;
    case SYS_READ:
+	f->eax = read((int)*(uint32_t*)(f->esp+4), (void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
 	break;
    case SYS_WRITE:
 	f->eax = write((int)*(uint32_t*)(f->esp+4),(void*) *(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));

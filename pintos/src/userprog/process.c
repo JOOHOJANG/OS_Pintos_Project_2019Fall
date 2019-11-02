@@ -95,12 +95,15 @@ int
 process_wait (tid_t child_tid) 
 {
 	struct thread * child;
+	int ret_stat;
+
 	child = tid_thread(child_tid);
+	ret_stat = child->ret_status;
 	
 	if(child == NULL) return -1;
 
 	sema_down(&(child->child_sync));
-	return child->ret_status;
+	return ret_stat;
 }
 
 /* Free the current process's resources. */
