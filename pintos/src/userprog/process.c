@@ -17,7 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-
+void parsing (char* dest, char* src);
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 void makestack(char* filename, void **esp);
@@ -31,8 +31,8 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-  char* token;
-  char* ptr;
+  char tmp[256];
+  parsing(tmp, file_name);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -40,11 +40,10 @@ process_execute (const char *file_name)
     return TID_ERROR;
 
   strlcpy (fn_copy, file_name, PGSIZE);
-  token = strtok_r(file_name, " ", &ptr);
-  if(filesys_open(token)==NULL) return -1;
+  if(filesys_open(tmp)==NULL) return -1;
   /* Create a new thread to execute FILE_NAME. */
   
-  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (tmp, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
 
@@ -96,7 +95,7 @@ start_process (void *file_name_)
    does nothing. */
 int
 process_wait (tid_t child_tid) 
-{
+{	
 	struct thread * child = NULL;
 	int ret_stat;
 
@@ -104,6 +103,7 @@ process_wait (tid_t child_tid)
 	
 	if(child == NULL) return -1;
 	
+
 	sema_down(&(child->child_sync));
 	ret_stat = thread_current()->child_status;
 	return ret_stat;
@@ -493,9 +493,9 @@ void makestack(char* filename, void **esp){
 	char* ptr;
 	char* token;
 
-	strlcpy(tmp, filename, inputlen);//input argument 저장이여
+	strlcpy(tmp, filename, inputlen);
        
-	token = strtok_r(filename, " ",&ptr);//토큰 갯수 확인용
+	token = strtok_r(filename, " ",&ptr);
 	while(token != NULL){ //토근 갯수 확인용
 		result++;
 		token = strtok_r(NULL, " ", &ptr); 
@@ -534,3 +534,12 @@ void makestack(char* filename, void **esp){
 	free(arg);	
 }
 
+void parsing(char *dest, char *src){
+	int i=0;
+	strlcpy(dest, src, strlen(src)+1);
+	while(1){
+		if(dest[i] == '\0' || dest[i] == ' ') break;
+		i++;
+	}
+	dest[i] = '\0';
+}

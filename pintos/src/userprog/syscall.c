@@ -52,7 +52,6 @@ void halt (void){
 void exit(int status){
 	struct thread* cur, * par;
 	int par_tid;
-	
 	cur = thread_current();
 	par_tid = cur->par_tid;
 	par = tid_thread(par_tid);
