@@ -19,6 +19,20 @@ syscall_handler (struct intr_frame *f)
    case SYS_HALT:
 	halt();
 	break;
+   case SYS_CREATE:
+	break;
+   case SYS_REMOVE:
+	break;
+   case SYS_OPEN:
+	break;
+   case SYS_CLOSE:
+	break;
+   case SYS_FILESIZE:
+	break;
+   case SYS_SEEK:
+	break;
+   case SYS_TELL:
+	break;
    case SYS_EXIT:
 	if(!is_user_vaddr(f->esp+4)) exit(-1);
         exit(*(uint32_t *)(f->esp + 4));
