@@ -20,16 +20,20 @@ syscall_handler (struct intr_frame *f)
 	halt();
 	break;
    case SYS_CREATE:
+	f->eax = create(*(char **)(f->esp+4), *(unsigned *)(f->esp+8));
 	break;
    case SYS_REMOVE:
+	f->eax = remove(*(char **)(f->esp+4));
 	break;
    case SYS_OPEN:
 	if(!is_user_vaddr(f->esp+4)) exit(-1);
 	f->eax = open(*(char**)(f->esp+4));
 	break;
    case SYS_CLOSE:
+	close(*(uint32_t *)(f->esp+4));
 	break;
    case SYS_FILESIZE:
+	f->eax = filesize(*(uint32_t *)(f->esp+4));
 	break;
    case SYS_SEEK:
 	break;
@@ -143,4 +147,23 @@ int open(const char *file){
 
 int filesize(int fd){
 	return file_length(thread_current()->filelist[fd]);
+}
+
+bool create (const char * file, unsigned initial_size){
+	if(!file) exit(-1);
+	return filesys_create(file, initial_size);
+}
+
+bool remove (const char *file){
+	if(!file) return false;
+	return filesys_remove(file);
+}
+
+void close (int fd){
+	struct thread * cur = thread_current();
+	if(cur->filelist[fd] != NULL) {
+		file_close(cur->filelist[fd]);
+		cur->filecnt--;
+	}
+	return;
 }
