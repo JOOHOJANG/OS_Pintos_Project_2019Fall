@@ -460,6 +460,7 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
+  int i;
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
@@ -473,6 +474,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
 #ifdef USERPROG
   sema_init(&(t->child_sync), 0);
+  for(i = 0; i < 128; ++i) t->filelist[i] = NULL;
 #endif
 }
 

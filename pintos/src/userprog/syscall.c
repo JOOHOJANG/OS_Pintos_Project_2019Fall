@@ -15,7 +15,6 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-
   switch (*(uint32_t*)(f->esp)){
    case SYS_HALT:
 	halt();
@@ -58,6 +57,7 @@ syscall_handler (struct intr_frame *f)
 	f->eax = wait(*(int*)(f->esp+4));
  	break;
    case SYS_READ:
+	if(!is_user_vaddr(f->esp+4) || !is_user_vaddr(f->esp+8) || !is_user_vaddr(f->esp+12)) exit(-1);
 	f->eax = read((int)*(uint32_t*)(f->esp+4), (void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
 	break;
    case SYS_WRITE:
@@ -70,29 +70,34 @@ syscall_handler (struct intr_frame *f)
    case SYS_SUM:
 	f->eax = sum_of_four_int((int)*(uint32_t*)(f->esp+4), (int)*(uint32_t*)(f->esp+8), (int)*(uint32_t*)(f->esp+12), (int)*(uint32_t*)(f->esp+16));
   }
-
 }
+
 void halt (void){
 	shutdown_power_off();
 }
 
 void exit(int status){
 	struct thread* cur, * par;
-	int par_tid;
+	int par_tid, i;
 	cur = thread_current();
 	par_tid = cur->par_tid;
 	par = tid_thread(par_tid);
 	par->child_status = status;
 	printf("%s: exit(%d)\n", cur->name, status);
+	for(i = 3; i < 128; i++) {
+		if(cur->filelist[i] != NULL) {
+			close(i);
+		}
+	}
 	thread_exit();
 }
 
 int write(int fd, const void *buffer, unsigned size){
-	if(fd==1){
+	if(fd == 1){
 		putbuf(buffer, size);
 		return size;
 	}
-	else if(fd>2){
+	else if(fd > 2 && fd < 128){
 		return file_write(thread_current()->filelist[fd], buffer, size);	
 	}
 	return -1;
@@ -104,47 +109,60 @@ int wait (pid_t pid){
 
 int read (int fd, void *buffer, unsigned size)
 {
-  int i;
-  void *temp = buffer;
-  if (fd == 0) {
-    for (i = 0; i < (int)size; i++) {
-      *(uint8_t *)temp = input_getc();
-      if (*(uint8_t *)temp++ == '\0') {
-        break;
-      }
-    }
-    return i;
-  }
-  return -1;
+	int i;
+	void *temp = buffer;
+
+	if (fd == 0) {
+		for (i = 0; i < (int)size; i++) {
+			*(uint8_t *)temp = input_getc();
+			if (*(uint8_t *)temp++ == '\0')
+				break;
+		}
+		return i;
+	}
+	else if( fd > 2 && fd < 128) {
+		struct file * cur_file = thread_current()->filelist[fd];
+
+		if(cur_file == NULL)
+			return -1;
+    
+		return file_read(cur_file, buffer, size);
+	}
+	return -1;
 }
+
 pid_t exec (const char *cmd_line)
 {
- return process_execute(cmd_line);
+	return process_execute(cmd_line);
 }
 
 int fibonacci (int n)
 {
-  int a = 0, res = 1, i;
+	int a = 0, res = 1, i, t;
 
-  for (i = 1; i < n; i++) {
-    int t = res;
-    res += a;
-    a = t;
-  }
+	for (i = 1; i < n; i++) {
+		t = res;
+		res += a;
+		a = t;
+	}
 
-  return res;
+	return res;
 }
 
 int sum_of_four_int (int a, int b, int c, int d){
-  return a + b + c + d;
+	return a + b + c + d;
 }
 
 int open(const char *file){
 	if(file == NULL) exit(-1);
+
 	struct file* tmp;
 	int i;
+
 	tmp = filesys_open(file);
+
 	if(tmp == NULL) return -1;
+
 	for(i = 3 ; i<128 ; i++){
 		if(thread_current() -> filelist[i] == NULL){
 			thread_current() -> filelist[i] = tmp;
@@ -164,20 +182,20 @@ bool create (const char * file, unsigned initial_size){
 }
 
 bool remove (const char *file){
-	if(!file) return false;
+	if(!file) exit(-1);
 	return filesys_remove(file);
 }
 
 void close (int fd){
 	struct thread * cur = thread_current();
-	if(cur->filelist[fd] != NULL) {
-		file_close(cur->filelist[fd]);
+	
+	if(cur->filelist[fd] != NULL)
 		cur->filecnt--;
-	}
-	return;
+	file_close(cur->filelist[fd]);
+	cur->filelist[fd] = NULL;
 }
 
-void seek (int fd, unsigned position) {
+void seek (int fd, unsigned position){
 	file_seek(thread_current()->filelist[fd], position);
 }
 
