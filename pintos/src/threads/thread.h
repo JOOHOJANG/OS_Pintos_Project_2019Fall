@@ -99,6 +99,8 @@ struct thread
     struct semaphore child_sync;
     int child_status;
     tid_t par_tid;
+    int filecnt;
+    struct file* filelist[128];
                     /* Page directory. */
 #endif
 

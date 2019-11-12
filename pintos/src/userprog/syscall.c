@@ -24,6 +24,8 @@ syscall_handler (struct intr_frame *f)
    case SYS_REMOVE:
 	break;
    case SYS_OPEN:
+	if(!is_user_vaddr(f->esp+4)) exit(-1);
+	f->eax = open(*(char**)(f->esp+4));
 	break;
    case SYS_CLOSE:
 	break;
@@ -97,7 +99,6 @@ int read (int fd, void *buffer, unsigned size)
         break;
       }
     }
-
     return i;
   }
 
@@ -125,3 +126,21 @@ int sum_of_four_int (int a, int b, int c, int d){
   return a + b + c + d;
 }
 
+int open(const char *file){
+	if(file == NULL) exit(-1);
+	struct file* tmp;
+	int i;
+	tmp = filesys_open(file);
+	if(tmp == NULL) return -1;
+	for(i = 3 ; i<128 ; i++){
+		if(thread_current() -> filelist[i] == NULL){
+			thread_current() -> filelist[i] = tmp;
+			thread_current() -> filecnt++;
+			return i;
+		}
+	}	
+}
+
+int filesize(int fd){
+	return file_length(thread_current()->filelist[fd]);
+}
