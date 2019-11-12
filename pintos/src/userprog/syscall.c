@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "filesys/file.h"
 static void syscall_handler (struct intr_frame *);
 void
 syscall_init (void) 
@@ -30,14 +31,19 @@ syscall_handler (struct intr_frame *f)
 	f->eax = open(*(char**)(f->esp+4));
 	break;
    case SYS_CLOSE:
+	if(!is_user_vaddr(f->esp+4)) exit(-1);
 	close(*(uint32_t *)(f->esp+4));
 	break;
    case SYS_FILESIZE:
 	f->eax = filesize(*(uint32_t *)(f->esp+4));
 	break;
    case SYS_SEEK:
+	if(!is_user_vaddr(f->esp+4)||!is_user_vaddr(f->esp+8)) exit(-1);
+	seek((int)*(uint32_t*)(f->esp+4),(unsigned)*(uint32_t*)(f->esp+8)); 
 	break;
    case SYS_TELL:
+	if(!is_user_vaddr(f->esp+4))exit(-1);
+	f->eax = tell((int)*(uint32_t*)(f->esp+4));
 	break;
    case SYS_EXIT:
 	if(!is_user_vaddr(f->esp+4)) exit(-1);
@@ -55,6 +61,7 @@ syscall_handler (struct intr_frame *f)
 	f->eax = read((int)*(uint32_t*)(f->esp+4), (void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
 	break;
    case SYS_WRITE:
+	if(!is_user_vaddr(f->esp+4) || !is_user_vaddr(f->esp+8) || !is_user_vaddr(f->esp+12)) exit(-1);
 	f->eax = write((int)*(uint32_t*)(f->esp+4),(void*) *(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
 	break;
    case SYS_FIBONACCI:
@@ -85,6 +92,9 @@ int write(int fd, const void *buffer, unsigned size){
 		putbuf(buffer, size);
 		return size;
 	}
+	else if(fd>2){
+		return file_write(thread_current()->filelist[fd], buffer, size);	
+	}
 	return -1;
 }
 
@@ -105,7 +115,6 @@ int read (int fd, void *buffer, unsigned size)
     }
     return i;
   }
-
   return -1;
 }
 pid_t exec (const char *cmd_line)
@@ -166,4 +175,12 @@ void close (int fd){
 		cur->filecnt--;
 	}
 	return;
+}
+
+void seek (int fd, unsigned position) {
+	file_seek(thread_current()->filelist[fd], position);
+}
+
+unsigned tell(int fd){
+	return file_tell(thread_current()->filelist[fd]);
 }
