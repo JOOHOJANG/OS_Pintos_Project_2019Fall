@@ -162,7 +162,7 @@ int open(const char *file){
 	tmp = filesys_open(file);
 
 	if(tmp == NULL) return -1;
-
+	if(!strcmp(thread_name(), file)) file_deny_write(tmp);
 	for(i = 3 ; i<128 ; i++){
 		if(thread_current() -> filelist[i] == NULL){
 			thread_current() -> filelist[i] = tmp;
