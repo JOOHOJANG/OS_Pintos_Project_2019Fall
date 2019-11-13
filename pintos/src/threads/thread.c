@@ -473,6 +473,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 #ifdef USERPROG
+  lock_init(&(t->lock));
   sema_init(&(t->child_sync), 0);
   for(i = 0; i < 128; ++i) t->filelist[i] = NULL;
 #endif

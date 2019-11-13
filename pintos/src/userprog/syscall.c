@@ -93,13 +93,20 @@ void exit(int status){
 }
 
 int write(int fd, const void *buffer, unsigned size){
+	lock_acquire(&(thread_current()->lock));
 	if(fd == 1){
 		putbuf(buffer, size);
+		lock_release(&(thread_current()->lock));
 		return size;
 	}
 	else if(fd > 2 && fd < 128){
-		return file_write(thread_current()->filelist[fd], buffer, size);	
+		if(thread_current()->filelist[fd] == NULL) exit(-1);
+		int ret = file_write(thread_current()->filelist[fd], buffer, size);	
+		
+		lock_release(&(thread_current()->lock));
+		return ret;
 	}
+	lock_release(&(thread_current()->lock));
 	return -1;
 }
 
@@ -111,23 +118,29 @@ int read (int fd, void *buffer, unsigned size)
 {
 	int i;
 	void *temp = buffer;
-
+	lock_acquire(&(thread_current()->lock));
 	if (fd == 0) {
 		for (i = 0; i < (int)size; i++) {
 			*(uint8_t *)temp = input_getc();
 			if (*(uint8_t *)temp++ == '\0')
 				break;
 		}
+		lock_release(&(thread_current()->lock));
 		return i;
 	}
 	else if( fd > 2 && fd < 128) {
 		struct file * cur_file = thread_current()->filelist[fd];
 
-		if(cur_file == NULL)
+		if(cur_file == NULL){
+			lock_release(&(thread_current()->lock));
 			return -1;
-    
-		return file_read(cur_file, buffer, size);
+		}	
+   		 
+		int ret = file_read(cur_file, buffer, size);
+		lock_release(&(thread_current()->lock));
+		return ret;
 	}
+	lock_release(&(thread_current()->lock));
 	return -1;
 }
 
