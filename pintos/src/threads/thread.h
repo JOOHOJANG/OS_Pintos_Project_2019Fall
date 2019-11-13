@@ -97,7 +97,6 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;
     struct semaphore child_sync;
-    struct lock lock;
     int child_status;
     tid_t par_tid;
     int filecnt;
