@@ -5,10 +5,14 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "filesys/file.h"
+
+struct lock syslock;
+
 static void syscall_handler (struct intr_frame *);
 void
 syscall_init (void) 
 {
+  lock_init(&syslock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -98,8 +102,12 @@ int write(int fd, const void *buffer, unsigned size){
 		return size;
 	}
 	else if(fd > 2 && fd < 128){
-		if(thread_current()->filelist[fd] == NULL) exit(-1);
+		if(thread_current()->filelist[fd] == NULL) {
+			return -1;
+		}
+		lock_acquire(&syslock);
 		int ret = file_write(thread_current()->filelist[fd], buffer, size);	
+		lock_release(&syslock);
 		return ret;
 	}
 	return -1;
@@ -111,6 +119,8 @@ int wait (pid_t pid){
 
 int read (int fd, void *buffer, unsigned size)
 {
+	if(!is_user_vaddr(buffer+size)) exit(-1);
+
 	int i;
 	void *temp = buffer;
 	if (fd == 0) {
@@ -127,7 +137,9 @@ int read (int fd, void *buffer, unsigned size)
 		if(cur_file == NULL){
 			return -1;
 		}	
+		lock_acquire(&syslock);
 		int ret = file_read(cur_file, buffer, size);
+		lock_release(&syslock);
 		return ret;
 	}
 	return -1;
@@ -163,7 +175,9 @@ int open(const char *file){
 
 	tmp = filesys_open(file);
 
-	if(tmp == NULL) return -1;
+	if(tmp == NULL) {
+		return -1;
+	}
 	if(!strcmp(thread_name(), file)) file_deny_write(tmp);
 	for(i = 3 ; i<128 ; i++){
 		if(thread_current() -> filelist[i] == NULL){
