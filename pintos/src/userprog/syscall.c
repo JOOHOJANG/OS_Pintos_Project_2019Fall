@@ -88,7 +88,7 @@ void exit(int status){
 	par = tid_thread(par_tid);
 	par->child_status = status;
 	printf("%s: exit(%d)\n", cur->name, status);
-	for(i = 3; i < 128; i++) {
+	for(i = 2; i < 128; i++) {
 		if(cur->filelist[i] != NULL) {
 			close(i);
 		}
@@ -101,7 +101,7 @@ int write(int fd, const void *buffer, unsigned size){
 		putbuf(buffer, size);
 		return size;
 	}
-	else if(fd > 2 && fd < 128){
+	else if(fd >= 2 && fd < 128){
 		if(thread_current()->filelist[fd] == NULL) {
 			return -1;
 		}
@@ -131,7 +131,7 @@ int read (int fd, void *buffer, unsigned size)
 		}
 		return i;
 	}
-	else if( fd > 2 && fd < 128) {
+	else if( fd >= 2 && fd < 128) {
 		struct file * cur_file = thread_current()->filelist[fd];
 
 		if(cur_file == NULL){
@@ -179,7 +179,7 @@ int open(const char *file){
 		return -1;
 	}
 	if(!strcmp(thread_name(), file)) file_deny_write(tmp);
-	for(i = 3 ; i<128 ; i++){
+	for(i = 2 ; i<128 ; i++){
 		if(thread_current() -> filelist[i] == NULL){
 			thread_current() -> filelist[i] = tmp;
 			thread_current() -> filecnt++;

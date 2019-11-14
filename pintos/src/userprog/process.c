@@ -32,6 +32,7 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
   char tmp[256];
+  struct file * file;
   parsing(tmp, file_name);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -40,7 +41,8 @@ process_execute (const char *file_name)
     return TID_ERROR;
 
   strlcpy (fn_copy, file_name, PGSIZE);
-  if(filesys_open(tmp)==NULL) return -1;
+  if((file = filesys_open(tmp)) == NULL) return -1;
+//  else file_close(&file);
   /* Create a new thread to execute FILE_NAME. */
   
   tid = thread_create (tmp, PRI_DEFAULT, start_process, fn_copy);
@@ -48,6 +50,7 @@ process_execute (const char *file_name)
     palloc_free_page (fn_copy);
 
   tid_thread(tid)->par_tid = thread_current()->tid;
+  sema_down(&(thread_current()->parent_lock));
   return tid;
 }
 
@@ -70,6 +73,7 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+  sema_up(&(tid_thread(thread_current()->par_tid)->parent_lock));
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -102,7 +106,7 @@ process_wait (tid_t child_tid)
 	child = tid_thread(child_tid);
 	
 	if(child == NULL) return -1;
-	
+	sema_up(&(child->exit_sync));
 
 	sema_down(&(child->child_sync));
 	ret_stat = thread_current()->child_status;
@@ -115,7 +119,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
+  sema_down(&(cur->exit_sync));
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -328,7 +332,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
   makestack(tmp, esp); 
   success = true;
-
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
