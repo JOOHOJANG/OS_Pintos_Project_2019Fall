@@ -6,13 +6,13 @@
 #include "threads/vaddr.h"
 #include "filesys/file.h"
 
-struct lock syslock;
+struct lock sys_lock;
 
 static void syscall_handler (struct intr_frame *);
 void
 syscall_init (void) 
 {
-  lock_init(&syslock);
+  lock_init(&sys_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -76,18 +76,18 @@ syscall_handler (struct intr_frame *f)
   }
 }
 
-void halt (void){
+void halt (void) {
 	shutdown_power_off();
 }
 
-void exit(int status){
-	struct thread* cur, * par;
-	int par_tid, i;
+void exit (int status) {
+	struct thread* cur;
+	int i;
+	
 	cur = thread_current();
-	par_tid = cur->par_tid;
-	par = tid_thread(par_tid);
-	par->child_status = status;
-	printf("%s: exit(%d)\n", cur->name, status);
+	cur->exit_status = status;
+
+	printf("%s: exit(%d)\n", cur->name, cur->exit_status);
 	for(i = 2; i < 128; i++) {
 		if(cur->filelist[i] != NULL) {
 			close(i);
@@ -96,125 +96,139 @@ void exit(int status){
 	thread_exit();
 }
 
-int write(int fd, const void *buffer, unsigned size){
-	if(fd == 1){
-		putbuf(buffer, size);
-		return size;
-	}
-	else if(fd >= 2 && fd < 128){
-		if(thread_current()->filelist[fd] == NULL) {
-			return -1;
-		}
-		lock_acquire(&syslock);
-		int ret = file_write(thread_current()->filelist[fd], buffer, size);	
-		lock_release(&syslock);
-		return ret;
-	}
-	return -1;
-}
-
-int wait (pid_t pid){
-	return process_wait(pid);
-}
-
-int read (int fd, void *buffer, unsigned size)
-{
-	if(!is_user_vaddr(buffer+size)) exit(-1);
-
-	int i;
-	void *temp = buffer;
-	if (fd == 0) {
-		for (i = 0; i < (int)size; i++) {
-			*(uint8_t *)temp = input_getc();
-			if (*(uint8_t *)temp++ == '\0')
-				break;
-		}
-		return i;
-	}
-	else if( fd >= 2 && fd < 128) {
-		struct file * cur_file = thread_current()->filelist[fd];
-
-		if(cur_file == NULL){
-			return -1;
-		}	
-		lock_acquire(&syslock);
-		int ret = file_read(cur_file, buffer, size);
-		lock_release(&syslock);
-		return ret;
-	}
-	return -1;
-}
-
-pid_t exec (const char *cmd_line)
-{
+pid_t exec (const char *cmd_line) {
 	return process_execute(cmd_line);
 }
 
-int fibonacci (int n)
-{
-	int a = 0, res = 1, i, t;
+int wait (pid_t pid) {
+	return process_wait(pid);
+}
 
-	for (i = 1; i < n; i++) {
+int read (int fd, void *buffer, unsigned size) {
+	if(!is_user_vaddr(buffer + size)) exit(-1);
+
+	if(fd == 0) {
+		void *temp;
+		int i;
+		temp = buffer;
+		for(i = 0; i < (int)size; i++) {
+			*(uint8_t *)temp = input_getc();
+			if(*(uint8_t *)temp = '\0') {
+				break;
+			}
+			(uint8_t *)temp++;
+		}
+		return i;
+	}
+	else if(fd >= 2 && fd < 128) {
+		struct file * cur_file;
+		int ret;
+
+		cur_file = thread_current()->filelist[fd];
+		if(cur_file == NULL) {
+			return -1;
+		}
+	
+		lock_acquire(&sys_lock);
+		ret = file_read(cur_file, buffer, size);
+		lock_release(&sys_lock);
+
+		return ret;
+	}
+	return -1;
+}
+
+int write (int fd, const void *buffer, unsigned size) {
+	if(fd == 1) {
+		putbuf(buffer, size);
+		return size;
+	}
+	else if(fd >= 2 && fd < 128) {
+		struct file * cur_file;
+		int ret;
+
+		cur_file = thread_current()->filelist[fd];
+		if(cur_file == NULL) {
+			return -1;
+		}
+	
+		lock_acquire(&sys_lock);
+		ret = file_write(cur_file, buffer, size);
+		lock_release(&sys_lock);
+		return ret;
+	}
+	return -1;
+}
+
+int fibonacci (int n) {
+	int a, res = 1, i, t;
+
+	for(i = 1; i < n; i++) {
 		t = res;
 		res += a;
 		a = t;
 	}
-
 	return res;
 }
 
-int sum_of_four_int (int a, int b, int c, int d){
+int sum_of_four_int (int a, int b, int c, int d) {
 	return a + b + c + d;
 }
 
-int open(const char *file){
-	if(file == NULL) exit(-1);
-
-	struct file* tmp;
-	int i;
-
-	tmp = filesys_open(file);
-
-	if(tmp == NULL) {
-		return -1;
-	}
-	if(!strcmp(thread_name(), file)) file_deny_write(tmp);
-	for(i = 2 ; i<128 ; i++){
-		if(thread_current() -> filelist[i] == NULL){
-			thread_current() -> filelist[i] = tmp;
-			thread_current() -> filecnt++;
-			return i;
-		}
-	}	
-}
-
-int filesize(int fd){
-	return file_length(thread_current()->filelist[fd]);
-}
-
-bool create (const char * file, unsigned initial_size){
+bool create (const char *file, unsigned initial_size) {
 	if(!file) exit(-1);
 	return filesys_create(file, initial_size);
 }
 
-bool remove (const char *file){
+bool remove (const char *file) {
 	if(!file) exit(-1);
 	return filesys_remove(file);
 }
-
-void close (int fd){
-	struct thread * cur = thread_current();
 	
-	if(cur->filelist[fd] != NULL)
-		cur->filecnt--;
-	file_close(cur->filelist[fd]);
-	cur->filelist[fd] = NULL;
+int open (const char *file) {
+	if(!file) exit(-1);
+
+	struct thread *cur;
+	struct file *open_file;
+	int i;
+
+	cur = thread_current();
+	open_file = filesys_open(file);
+	if(open_file == NULL) {
+		return -1;
+	}
+
+	if(!strcmp(thread_name(), file)) file_deny_write(open_file);
+	for(i = 2; i < 128; i++) {
+		if(cur->filelist[i] == NULL) {
+			cur->filelist[i] = open_file;
+			cur->filecnt++;
+			return i;
+		}
+	}
+	return -1;
 }
 
-void seek (int fd, unsigned position){
+int filesize (int fd) {
+	return file_length(thread_current()->filelist[fd]);
+}
+
+void seek (int fd, unsigned position) {
 	file_seek(thread_current()->filelist[fd], position);
 }
 
-unsigned tell(int fd){
+unsigned tell (int fd) {
 	return file_tell(thread_current()->filelist[fd]);
 }
+
+void close (int fd) {
+	struct thread *cur;
+	cur = thread_current();
+
+	if(cur->filelist[fd] != NULL) {
+		cur->filecnt--;
+		file_close(cur->filelist[fd]);
+		cur->filelist[fd] = NULL;
+	}
+}
+

@@ -41,16 +41,20 @@ process_execute (const char *file_name)
     return TID_ERROR;
 
   strlcpy (fn_copy, file_name, PGSIZE);
-  if((file = filesys_open(tmp)) == NULL) return -1;
-//  else file_close(&file);
   /* Create a new thread to execute FILE_NAME. */
   
   tid = thread_create (tmp, PRI_DEFAULT, start_process, fn_copy);
+
+  tid_thread(tid)->par_tid = thread_current()->tid;
+  sema_down(&(tid_thread(tid)->load_sema));
+
+  struct thread *check;
+  check = tid_thread(-1);
+  if(check != NULL) return -1;
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
 
-  tid_thread(tid)->par_tid = thread_current()->tid;
-  sema_down(&(thread_current()->parent_lock));
   return tid;
 }
 
@@ -62,22 +66,25 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  //char* token;
-  //char* ptr;
-  //char tmp[256];
-  //strlcpy(tmp, file_name, strlen(file_name)+1);
-  // token = strtok_r(file_name, ' ', &ptr);
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  sema_up(&(tid_thread(thread_current()->par_tid)->parent_lock));
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success) {
+    thread_current()->tid = -1;
+    sema_up(&(thread_current()->load_sema));
     exit(-1);
+  }
+  else {
+    sema_up(&(thread_current()->load_sema));
+  }
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -101,15 +108,20 @@ int
 process_wait (tid_t child_tid) 
 {	
 	struct thread * child = NULL;
+	struct thread * cur;
 	int ret_stat;
 
 	child = tid_thread(child_tid);
+	cur = thread_current();
 	
 	if(child == NULL) return -1;
-	sema_up(&(child->exit_sync));
 
-	sema_down(&(child->child_sync));
-	ret_stat = thread_current()->child_status;
+	sema_up(&(child->wait_sema));
+	cur->waiting_child = child_tid;
+	sema_down(&(child->exit_sema));
+
+	ret_stat = cur->exit_status;
+	cur->waiting_child = cur->tid;
 	return ret_stat;
 }
 
@@ -118,8 +130,12 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
+  struct thread *par;
   uint32_t *pd;
-  sema_down(&(cur->exit_sync));
+  par = tid_thread(cur->par_tid);
+
+  if(par->waiting_child != cur->tid)
+    sema_down(&(cur->wait_sema));
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -136,7 +152,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-    sema_up(&(cur->child_sync));
+  par->exit_status = cur->exit_status;
+  sema_up(&(cur->exit_sema));
 }
 
 /* Sets up the CPU for running user code in the current

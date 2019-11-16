@@ -13,12 +13,12 @@ int write (int, const void *, unsigned);
 int fibonacci (int);
 int sum_of_four_int (int, int, int, int);
 
-int open(const char *);
-int filesize(int);
 bool create (const char *, unsigned);
 bool remove (const char *);
-void close (int);
+int open (const char *);
+int filesize (int);
 void seek (int, unsigned);
-unsigned tell(int);
+unsigned tell (int);
+void close (int);
 
 #endif /* userprog/syscall.h */

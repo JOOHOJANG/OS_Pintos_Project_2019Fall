@@ -470,13 +470,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-  t->filecnt = 2;
   list_push_back (&all_list, &t->allelem);
 #ifdef USERPROG
-  sema_init(&(t->child_sync), 0);
-  sema_init(&(t->exit_sync), 0);
-  sema_init(&(t->parent_lock), 0);
+  sema_init(&(t->load_sema), 0);
+  sema_init(&(t->exit_sema), 0);
+  sema_init(&(t->wait_sema), 0);
+  t->waiting_child = t->tid;
   for(i = 0; i < 128; ++i) t->filelist[i] = NULL;
+  t->filecnt = 2;
 #endif
 }
 

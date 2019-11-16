@@ -96,13 +96,14 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;
-    struct semaphore child_sync;
-    struct semaphore exit_sync;
-    int child_status;
+    struct semaphore load_sema;
+    struct semaphore exit_sema;
+    struct semaphore wait_sema;
+    int exit_status;
     tid_t par_tid;
+    tid_t waiting_child;
     int filecnt;
     struct file* filelist[128];
-    struct semaphore parent_lock;
                     /* Page directory. */
 #endif
 
