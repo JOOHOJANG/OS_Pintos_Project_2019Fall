@@ -50,7 +50,7 @@ process_execute (const char *file_name)
 
   struct thread *check;
   check = tid_thread(-1);
-  if(check != NULL) return -1;
+  if(check != NULL) return process_wait(-1);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
