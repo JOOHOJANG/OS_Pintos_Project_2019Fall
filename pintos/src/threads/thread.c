@@ -476,7 +476,7 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&(t->exit_sema), 0);
   sema_init(&(t->wait_sema), 0);
   t->waiting_child = t->tid;
-  for(i = 0; i < 128; ++i) t->filelist[i] = NULL;
+  for(i = 2; i < 128; ++i) t->filelist[i] = NULL;
   t->filecnt = 2;
 #endif
 }
