@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -27,7 +28,7 @@ static struct list ready_list;
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
-
+static struct list sleep_list;
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -63,7 +64,6 @@ bool thread_prior_aging;
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
-
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -75,7 +75,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -97,7 +96,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  list_init (&sleep_list);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -144,8 +143,6 @@ thread_tick (void)
     intr_yield_on_return ();
 
   /* Project #3. */
-  if (thread_prior_aging == true)
-    thread_aging();
 }
 
 /* Prints thread statistics. */
@@ -616,4 +613,37 @@ struct thread * tid_thread(tid_t num){
 		}
 	}
 	return NULL;
+}
+void thread_wake(int64_t ticks){
+	struct list_elem *e;
+	struct thread * tmp;
+	e = list_begin(&sleep_list);
+	tmp = list_entry(e, struct thread, elem);
+	while(tmp->wakeup_time<=ticks){
+		e = list_remove(&tmp->elem);
+		thread_unblock(tmp);
+		tmp = list_entry(e, struct thread, elem);
+	}	
+}
+void thread_sleep(int64_t ticks){
+	struct thread* cur;
+	enum intr_level old_level;
+	old_level = intr_disable();
+	cur = thread_current();
+	ASSERT(cur!=idle_thread);
+	cur->wakeup_time = ticks;
+	list_insert_ordered(&sleep_list, &cur->elem, compare_ticks, 0);
+	thread_block();
+	intr_set_level(old_level);
+}
+bool compare_ticks(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
+	return list_entry(a, struct thread, elem)->wakeup_time < list_entry(b, struct thread, elem)->wakeup_time;
+}
+void check_tick(int64_t ticks){
+	struct list_elem *e;
+	struct thread *tmp;
+	e = list_begin(&sleep_list);
+	tmp = list_entry(e, struct thread, elem);
+	if(tmp->wakeup_time<=ticks) thread_wake(ticks);
+	else return ;
 }
