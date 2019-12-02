@@ -214,7 +214,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  check_thread();
   return tid;
 }
 
@@ -251,7 +251,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered (&ready_list, &t->elem, compare_thread_priority, 0);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -322,7 +322,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered (&ready_list, &cur->elem, compare_thread_priority, 0);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -350,6 +350,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  check_thread();
 }
 
 /* Returns the current thread's priority. */
@@ -630,7 +631,6 @@ void thread_sleep(int64_t ticks){
 	enum intr_level old_level;
 	old_level = intr_disable();
 	cur = thread_current();
-	ASSERT(cur!=idle_thread);
 	cur->wakeup_time = ticks;
 	list_insert_ordered(&sleep_list, &cur->elem, compare_ticks, 0);
 	thread_block();
@@ -646,4 +646,16 @@ void check_tick(int64_t ticks){
 	tmp = list_entry(e, struct thread, elem);
 	if(tmp->wakeup_time<=ticks) thread_wake(ticks);
 	else return ;
+}
+bool compare_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
+	return list_entry(a, struct thread, elem)->priority > list_entry(b, struct thread, elem)->priority;
+}
+void check_thread(){
+	struct list_elem *e;
+	struct thread *tmp;
+	e = list_begin(&ready_list);
+	if(e !=NULL){
+		tmp = list_entry(e, struct thread, elem);
+		if(tmp->priority > thread_current()->priority) thread_yield();
+	}
 }
