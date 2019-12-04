@@ -132,7 +132,7 @@ void thread_sleep();
 void check_tick();
 void check_thread();
 bool compare_ticks(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
-bool compare_thread_priority(const struct list_elem *, const struct list_elem *b, void *aux UNUSED);
+bool compare_priority(const struct list_elem *, const struct list_elem *b, void *aux UNUSED);
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 

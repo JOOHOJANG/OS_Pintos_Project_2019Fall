@@ -143,6 +143,8 @@ thread_tick (void)
     intr_yield_on_return ();
 
   /* Project #3. */
+  if (thread_prior_aging == true)
+    thread_aging ();
 }
 
 /* Prints thread statistics. */
@@ -251,7 +253,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem, compare_thread_priority, 0);
+  list_insert_ordered (&ready_list, &t->elem, compare_priority, 0);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -322,7 +324,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered (&ready_list, &cur->elem, compare_thread_priority, 0);
+    list_insert_ordered (&ready_list, &cur->elem, compare_priority, 0);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -647,7 +649,7 @@ void check_tick(int64_t ticks){
 	if(tmp->wakeup_time<=ticks) thread_wake(ticks);
 	else return ;
 }
-bool compare_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
+bool compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
 	return list_entry(a, struct thread, elem)->priority > list_entry(b, struct thread, elem)->priority;
 }
 void check_thread(){
@@ -657,5 +659,12 @@ void check_thread(){
 	if(e !=NULL){
 		tmp = list_entry(e, struct thread, elem);
 		if(tmp->priority > thread_current()->priority) thread_yield();
+	}
+}
+void thread_aging () {
+	struct list_elem * list_it;
+
+	for (list_it = list_begin(&ready_list); list_it != list_end(&ready_list); list_it = list_next(list_it)) {
+		list_entry(list_it, struct thread, elem)->priority++;
 	}
 }
