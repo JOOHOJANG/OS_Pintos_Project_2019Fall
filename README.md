@@ -9,7 +9,7 @@ Sogang univ. Operating System (CSE4070-02)
 
 <hr />
 
-## Project1
+## Project 1
 
 > User Program(1)
 
@@ -23,7 +23,7 @@ Sogang univ. Operating System (CSE4070-02)
 
 > Score : 103.00 / 100.00
 
-## Project2
+## Project 2
 
 > User Program(2)
 
